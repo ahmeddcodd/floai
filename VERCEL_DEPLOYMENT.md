@@ -35,5 +35,6 @@ After the first deployment:
 
 1. Open the deployed site and verify the landing page, sign-in page, dashboard route, privacy page, and terms page.
 2. Confirm Google sign-in redirect URLs are allowed for the deployed domain in Supabase auth settings.
+   Add your deployed callback URL ending in `/auth/callback`.
 3. Confirm the deployed domain is allowed in Meta app / WhatsApp Embedded Signup configuration if that flow is enabled.
 4. Confirm `NEXT_PUBLIC_API_BASE_URL` points to the correct backend environment.

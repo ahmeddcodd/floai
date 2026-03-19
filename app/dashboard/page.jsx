@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://cod-automation.vercel.app";
+import SiteFooter from "../components/SiteFooter";
+import { buildApiUrl, createAuthHeaders, readErrorMessage } from "../../lib/api";
+import { SETUP_PATH } from "../../lib/routes";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -30,12 +31,11 @@ export default function DashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [user, setUser] = useState(null);
 
-  // 1. Auth Check
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push("/");
+        router.push(SETUP_PATH);
         return;
       }
       setUser(session.user);
@@ -43,7 +43,6 @@ export default function DashboardPage() {
     checkAuth();
   }, [router]);
 
-  // 2. Merchant ID
   useEffect(() => {
     if (typeof window === "undefined") return;
     const param = new URLSearchParams(window.location.search).get("merchant_id");
@@ -58,77 +57,56 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // 3. Fetch orders + stats (initial load + manual refresh)
+  const loadDashboardData = useCallback(async ({ showLoading = true } = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !merchantId) {
+      if (showLoading) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (showLoading) {
+      setLoading(true);
+      setError("");
+    }
+
+    try {
+      const headers = createAuthHeaders(session.access_token);
+
+      const [ordersRes, statsRes] = await Promise.all([
+        fetch(buildApiUrl(`/api/merchants/${encodeURIComponent(merchantId)}/orders?limit=50`), { headers }),
+        fetch(buildApiUrl(`/api/merchants/${encodeURIComponent(merchantId)}/stats`), { headers }),
+      ]);
+
+      if (!ordersRes.ok) throw new Error(await readErrorMessage(ordersRes, "Unable to load orders."));
+      if (!statsRes.ok) throw new Error(await readErrorMessage(statsRes, "Unable to load stats."));
+
+      const ordersData = await ordersRes.json();
+      const statsData = await statsRes.json();
+
+      setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
+      setStats(statsData);
+    } catch (err) {
+      if (showLoading) {
+        setError(err.message || "Unable to load dashboard data.");
+      }
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }, [merchantId]);
+
   useEffect(() => {
     if (!merchantId) {
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+    void loadDashboardData({ showLoading: true });
+  }, [loadDashboardData, merchantId, refreshKey]);
 
-      setLoading(true);
-      setError("");
-
-      try {
-        const headers = { "Authorization": `Bearer ${session.access_token}` };
-
-        const [ordersRes, statsRes] = await Promise.all([
-          fetch(`${API_BASE}/api/merchants/${encodeURIComponent(merchantId)}/orders?limit=50`, { headers }),
-          fetch(`${API_BASE}/api/merchants/${encodeURIComponent(merchantId)}/stats`, { headers }),
-        ]);
-
-        if (!ordersRes.ok) throw new Error(await ordersRes.text());
-        if (!statsRes.ok) throw new Error(await statsRes.text());
-
-        const ordersData = await ordersRes.json();
-        const statsData = await statsRes.json();
-
-        if (!cancelled) {
-          setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
-          setStats(statsData);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err.message || "Unable to load dashboard data.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [merchantId, refreshKey]);
-
-  // 4. Silent background refetch (no loading spinner — used by realtime)
-  const silentRefresh = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session || !merchantId) return;
-
-      const headers = { "Authorization": `Bearer ${session.access_token}` };
-
-      const [ordersRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/merchants/${encodeURIComponent(merchantId)}/orders?limit=50`, { headers }),
-        fetch(`${API_BASE}/api/merchants/${encodeURIComponent(merchantId)}/stats`, { headers }),
-      ]);
-
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json();
-        setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
-      }
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
-    } catch (err) {
-      console.error("Silent refresh failed:", err);
-    }
-  };
-
-  // 5. Realtime subscription
   useEffect(() => {
     if (!merchantId) return;
 
@@ -141,11 +119,10 @@ export default function DashboardPage() {
           schema: "public",
           table: "orders",
         },
-        (payload) => {
-          console.log("INSERT received:", payload.new);
-          // Always do a silent refresh to get the complete data + updated stats
-          // Small delay to ensure the DB write is fully committed
-          setTimeout(() => silentRefresh(), 500);
+        () => {
+          setTimeout(() => {
+            void loadDashboardData({ showLoading: false });
+          }, 500);
         }
       )
       .on(
@@ -155,26 +132,28 @@ export default function DashboardPage() {
           schema: "public",
           table: "orders",
         },
-        (payload) => {
-          console.log("UPDATE received:", payload.new);
-          setTimeout(() => silentRefresh(), 500);
+        () => {
+          setTimeout(() => {
+            void loadDashboardData({ showLoading: false });
+          }, 500);
         }
       )
-      .subscribe((status, err) => {
-        console.log("Realtime status:", status, err ?? "");
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [merchantId]);
+  }, [loadDashboardData, merchantId]);
 
   const handleLogout = async () => {
     setSigningOut(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 250));
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("merchant_id");
+      }
       await supabase.auth.signOut();
-      router.push("/");
+      router.push(SETUP_PATH);
     } finally {
       setTimeout(() => setSigningOut(false), 500);
     }
@@ -224,7 +203,7 @@ export default function DashboardPage() {
           </button>
 
           <span style={{ display: "inline-flex" }}>
-            <Link className="button button-primary" href="/">
+            <Link className="button button-primary" href={SETUP_PATH}>
               Manage store
             </Link>
           </span>
@@ -333,13 +312,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <footer className="landing-footer" style={{ marginTop: 'auto', background: 'transparent', borderTop: 'none' }}>
-        <div className="landing-footer-bottom">
-          <p>
-            © 2026 FloAI &bull; <Link href="/privacy-policy" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy Policy</Link> &bull; <Link href="/terms" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms &amp; Conditions</Link>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter compact transparent />
     </main>
   );
 }

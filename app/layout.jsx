@@ -1,8 +1,9 @@
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_NAME } from "../lib/site";
 
 export const metadata = {
-  title: "FloAI Dashboard",
-  description: "Register your store and monitor COD orders in real time.",
+  title: SITE_NAME,
+  description: SITE_DESCRIPTION,
 };
 
 export default function RootLayout({ children }) {
