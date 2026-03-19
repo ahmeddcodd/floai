@@ -8,13 +8,16 @@ When importing this repository into Vercel, set the **Root Directory** to:
 
 This app lives in a subfolder, so setting the root directory correctly is important.
 
-## Required Environment Variables
+## Environment Variables
 
-Add these variables in the Vercel project settings before deploying:
+Add these required variables in the Vercel project settings before deploying:
 
 - `NEXT_PUBLIC_API_BASE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Add these only if you want WhatsApp Embedded Signup enabled in the setup flow:
+
 - `NEXT_PUBLIC_META_APP_ID`
 - `NEXT_PUBLIC_META_CONFIG_ID`
 
