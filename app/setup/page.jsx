@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import SiteFooter from "../components/SiteFooter";
@@ -50,56 +50,90 @@ export default function SetupPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
   const [fbReady, setFbReady] = useState(false);
   const [waConnected, setWaConnected] = useState(false);
   const [waData, setWaData] = useState(null); // { phone_number_id, waba_id }
   const [waAuthCode, setWaAuthCode] = useState(null); // FB.login auth code
 
-
-  // 1. Check Auth state
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+  const resolveSessionAndMerchant = useCallback(
+    async ({ session: knownSession } = {}) => {
+      const session =
+        knownSession ??
+        (
+          await supabase.auth.getSession()
+        ).data.session;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
-      if (currentUser && session) {
-        try {
-          const response = await fetch(buildApiUrl("/api/merchants/me"), {
-            headers: createAuthHeaders(session.access_token),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data?.merchant_id) {
-              localStorage.setItem("merchant_id", data.merchant_id);
-              router.push(buildDashboardPath(data.merchant_id));
-              return;
-            }
-          }
-        } catch (err) {
-          // No merchant found, stay on registration page
+      if (!currentUser || !session) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("merchant_id");
         }
+        setLoading(false);
+        return;
       }
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("merchant_id");
+      try {
+        const response = await fetch(buildApiUrl("/api/merchants/me"), {
+          headers: createAuthHeaders(session.access_token),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.merchant_id) {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("merchant_id", data.merchant_id);
+            }
+            router.replace(buildDashboardPath(data.merchant_id));
+            return;
+          }
+        }
+      } catch {
+        // No merchant found yet, continue with setup.
       }
+
       setLoading(false);
+    },
+    [router]
+  );
+
+  // 1. Check Auth state
+  useEffect(() => {
+    let mounted = true;
+
+    const getSession = async () => {
+      await resolveSessionAndMerchant();
     };
 
-    getSession();
+    void getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session && typeof window !== "undefined") {
-        localStorage.removeItem("merchant_id");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) {
+        return;
       }
+
+      if (!session) {
+        setUser(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("merchant_id");
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        setLoading(true);
+      }
+      void resolveSessionAndMerchant({ session });
     });
 
 
-    return () => subscription.unsubscribe();
-  }, [router]);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [resolveSessionAndMerchant]);
 
   // Facebook SDK initialization + Embedded Signup listener
   useEffect(() => {
@@ -179,13 +213,18 @@ export default function SetupPage() {
   const merchantIdPreviewReady = Boolean(normalizedDomain || form.storeName.trim());
 
   const handleGoogleLogin = async () => {
+    setError("");
+    setGoogleSigningIn(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}${AUTH_CALLBACK_PATH}?next=${encodeURIComponent(SETUP_PATH)}`,
       },
     });
-    if (error) setError(error.message);
+    if (error) {
+      setGoogleSigningIn(false);
+      setError(error.message);
+    }
   };
 
   const handleLogout = async () => {
@@ -272,7 +311,7 @@ export default function SetupPage() {
         localStorage.setItem("merchant_id", merchantId);
       }
 
-      router.push(buildDashboardPath(merchantId));
+      router.replace(buildDashboardPath(merchantId));
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -288,7 +327,7 @@ export default function SetupPage() {
             <h1>{SITE_NAME}</h1>
           </div>
         </header>
-        <div className="card" style={{ textAlign: 'center', padding: '100px' }}>
+        <div className="card auth-card auth-card-loading">
           <div className="friendly-loader" aria-hidden="true">
             <span />
             <span />
@@ -308,12 +347,11 @@ export default function SetupPage() {
           <h1>{SITE_NAME}</h1>
           <p>Register your Shopify store and track COD confirmations in one place.</p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="header-tools">
           {user && (
             <button
               onClick={handleLogout}
-              className="button"
-              style={{ padding: '10px 20px', fontSize: '1rem' }}
+              className="button signout-button"
               disabled={signingOut}
             >
               {signingOut ? "Signing out..." : "Sign Out"}
@@ -324,16 +362,17 @@ export default function SetupPage() {
 
       {!user ? (
         <section
-          className="card reveal"
-          style={{ "--delay": "0.2s", textAlign: 'center', padding: '80px 40px' }}
+          className="card reveal auth-card auth-signin-card"
+          style={{ "--delay": "0.2s" }}
         >
           <h2 className="section-title">Sign in to continue</h2>
-          <p className="help-text" style={{ marginBottom: '32px' }}>
+          <p className="help-text signin-help">
             Please sign in with your Google account to manage your store and COD orders.
           </p>
           <button
             className="button button-primary"
             onClick={handleGoogleLogin}
+            disabled={googleSigningIn}
           >
             <span className="google-mark" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18">
@@ -343,9 +382,9 @@ export default function SetupPage() {
                 <path fill="#FBBC05" d="M12 7.6c1.3 0 2.4.4 3.3 1.2l2.4-2.4C16.5 5.2 14.4 4.4 12 4.4A10 10 0 0 0 3.9 9L7 11.4c.7-2.2 2.7-3.8 5-3.8z" />
               </svg>
             </span>
-            Sign in with Google
+            {googleSigningIn ? "Redirecting to Google..." : "Sign in with Google"}
           </button>
-          {error && <p className="notice error-notice" style={{ marginTop: '24px' }}>{error}</p>}
+          {error ? <p className="notice error-notice signin-error">{error}</p> : null}
         </section>
       ) : (
         <section
@@ -416,43 +455,25 @@ export default function SetupPage() {
                 />
               </div>
 
-              <div className="api-info" style={{ gridColumn: "1 / -1" }}>
+              <div className="api-info form-span-full">
                 <span className="api-label">Connected API Endpoint</span>
                 <code className="api-url">{API_BASE_URL}</code>
               </div>
 
               {/* ── WhatsApp Embedded Signup ── */}
               {META_APP_ID && META_CONFIG_ID && (
-                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                <div className="field form-span-full">
                   <label>Connect to send automated message to clients.</label>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "16px",
-                      marginTop: "8px",
-                    }}
-                  >
+                  <div className="wa-connect-row">
                     {waConnected ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "12px",
-                          padding: "12px 20px",
-                          borderRadius: "12px",
-                          background: "var(--color-success-bg, rgba(34,197,94,0.12))",
-                          border: "1px solid var(--color-success-border, rgba(34,197,94,0.3))",
-                          flex: 1,
-                        }}
-                      >
+                      <div className="wa-connected-card">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20 6 9 17l-5-5" />
                         </svg>
                         <div>
-                          <strong style={{ color: "var(--text-primary)" }}>WhatsApp Connected</strong>
+                          <strong>WhatsApp Connected</strong>
                           {waData && (
-                            <p style={{ fontSize: "0.85rem", opacity: 0.7, margin: "4px 0 0" }}>
+                            <p className="wa-connected-meta">
                               Phone ID: {waData.phone_number_id} &bull; WABA: {waData.waba_id}
                             </p>
                           )}
@@ -460,21 +481,10 @@ export default function SetupPage() {
                       </div>
                     ) : (
                       <button
-                        className="button"
                         type="button"
                         onClick={launchWhatsAppSignup}
                         disabled={!fbReady}
-                        style={{
-                          background: "#25D366",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          padding: "12px 24px",
-                          fontSize: "1rem",
-                          fontWeight: 600,
-                          opacity: fbReady ? 1 : 0.5,
-                        }}
+                        className="button wa-connect-button"
                       >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
@@ -483,7 +493,7 @@ export default function SetupPage() {
                       </button>
                     )}
                   </div>
-                  <p className="help-text" style={{ marginTop: "8px" }}>
+                  <p className="help-text wa-help">
                     Connect your WhatsApp Business account to send automated order confirmations from your own number.
                   </p>
                 </div>

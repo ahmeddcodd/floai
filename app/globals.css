@@ -46,6 +46,15 @@ body {
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
 body {
   min-height: 100vh;
   background:
@@ -219,6 +228,13 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .form-actions {
   grid-column: 1 / -1;
   margin-top: 10px;
@@ -290,6 +306,47 @@ textarea:focus {
 
 .button-secondary:hover {
   background: #f4f8ff;
+}
+
+.signout-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+}
+
+.account-email {
+  font-size: 1rem;
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-link-wrap {
+  display: inline-flex;
+}
+
+.auth-card {
+  text-align: center;
+  padding: clamp(28px, 8vw, 80px) clamp(16px, 6vw, 40px);
+}
+
+.auth-card-loading {
+  padding: clamp(28px, 10vw, 100px);
+}
+
+.signin-help {
+  margin-bottom: 32px;
+}
+
+.signin-error {
+  margin-top: 24px;
+}
+
+.callback-title {
+  margin-bottom: 16px;
+}
+
+.callback-actions {
+  justify-content: center;
+  margin-top: 24px;
 }
 
 .stats {
@@ -399,6 +456,7 @@ textarea:focus {
   border-radius: var(--radius-md);
   overflow: auto;
   background: var(--surface);
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -1143,6 +1201,96 @@ tr:hover td {
   word-break: break-all;
 }
 
+.form-span-full {
+  grid-column: 1 / -1;
+}
+
+.wa-connect-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.wa-connected-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: var(--success-soft);
+  border: 1px solid #86efac;
+  flex: 1;
+  min-width: 0;
+}
+
+.wa-connected-card strong {
+  color: var(--text);
+}
+
+.wa-connected-meta {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.wa-connect-button {
+  background: #25d366;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.wa-connect-button:hover {
+  background: #1faa56;
+}
+
+.wa-help {
+  margin-top: 8px;
+}
+
+.compact-footer-link {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.legal-main {
+  padding-top: 140px;
+}
+
+.legal-shield-icon {
+  margin: 0 auto 24px;
+}
+
+.legal-card {
+  margin-top: 48px;
+  text-align: left;
+  line-height: 1.8;
+}
+
+.legal-section-spaced {
+  margin-bottom: 32px;
+}
+
+.legal-heading {
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+}
+
+.legal-list {
+  padding-left: 20px;
+  margin-top: 12px;
+}
+
+.legal-block-gap {
+  margin-top: 12px;
+}
+
 @media (max-width: 1024px) {
   .landing-problem-grid,
   .landing-steps-grid,
@@ -1172,6 +1320,21 @@ tr:hover td {
   .form-actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .form-actions .button,
+  .header-tools .button {
+    width: 100%;
+  }
+
+  .wa-connect-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-link-wrap,
+  .dashboard-link-wrap .button {
+    width: 100%;
   }
 
   .landing-nav-links a:not(.button) {
@@ -1224,5 +1387,91 @@ tr:hover td {
   .landing-footer-links {
     flex-wrap: wrap;
     gap: 22px;
+  }
+}
+
+@media (max-width: 560px) {
+  body {
+    font-size: 1rem;
+  }
+
+  .page {
+    width: min(1200px, 92vw);
+    padding: 28px 0 44px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .feedback-card {
+    width: min(440px, calc(100vw - 28px));
+    padding: 22px 20px;
+  }
+
+  th,
+  td {
+    padding: 11px 12px;
+    font-size: 0.92rem;
+  }
+
+  table {
+    min-width: 840px;
+  }
+
+  .landing-nav-inner,
+  .landing-section-inner,
+  .landing-footer-inner,
+  .landing-footer-bottom {
+    width: min(1200px, 92vw);
+  }
+
+  .landing-nav-brand {
+    font-size: 1.32rem;
+  }
+
+  .landing-nav-cta {
+    padding: 10px 16px !important;
+    font-size: 0.98rem !important;
+  }
+
+  .landing-cta-card {
+    padding: 36px 18px;
+  }
+
+  .landing-footer-links a {
+    font-size: 1rem;
+  }
+
+  .landing-footer-bottom p {
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .legal-main {
+    padding-top: 132px;
+  }
+}
+
+@media (max-width: 420px) {
+  .landing-nav-inner {
+    flex-wrap: wrap;
+  }
+
+  .landing-nav-links {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .landing-nav-cta {
+    width: 100%;
+  }
+
+  .landing-hero {
+    padding-top: 152px;
+  }
+
+  .legal-main {
+    padding-top: 156px;
   }
 }

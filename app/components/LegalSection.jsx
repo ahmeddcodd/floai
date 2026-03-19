@@ -1,7 +1,7 @@
 export default function LegalSection({ title, children, last = false }) {
   return (
-    <section style={last ? undefined : { marginBottom: "32px" }}>
-      <h2 className="section-title" style={{ fontSize: "1.5rem", marginBottom: "16px" }}>
+    <section className={last ? "legal-section" : "legal-section legal-section-spaced"}>
+      <h2 className="section-title legal-heading">
         {title}
       </h2>
       {children}

@@ -20,7 +20,7 @@ export default function SiteFooter({ compact = false, transparent = false }) {
             {LEGAL_LINKS.map((link, index) => (
               <span key={link.href}>
                 {index > 0 ? " • " : null}
-                <Link href={link.href} style={{ color: "inherit", textDecoration: "underline" }}>
+                <Link href={link.href} className="compact-footer-link">
                   {link.label}
                 </Link>
               </span>

@@ -20,7 +20,7 @@ export default function TermsPage() {
           dashboard reporting, and WhatsApp-based order confirmation workflows when properly connected
           to supported third-party services.
         </p>
-        <p style={{ marginTop: "12px" }}>
+        <p className="legal-block-gap">
           {SITE_NAME} is not a marketplace, payment processor, fulfillment provider, insurance service,
           or legal compliance service.
         </p>
@@ -36,7 +36,7 @@ export default function TermsPage() {
 
       <LegalSection title="4. Your Responsibilities">
         <p>You are responsible for:</p>
-        <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+        <ul className="legal-list">
           <li>Providing accurate account, store, and integration information.</li>
           <li>Ensuring you have lawful authority to access and use your Shopify, WhatsApp, and related business accounts through {SITE_NAME}.</li>
           <li>Reviewing and monitoring automated actions taken on your behalf.</li>
@@ -60,7 +60,7 @@ export default function TermsPage() {
           decisions. Risk scores, recommendations, and automated message flows are decision-support tools
           only. They may be incomplete, inaccurate, or unavailable in some cases.
         </p>
-        <p style={{ marginTop: "12px" }}>
+        <p className="legal-block-gap">
           We do not guarantee that {SITE_NAME} will identify every fraudulent order, prevent every return,
           improve delivery rates, or produce any specific business outcome.
         </p>
@@ -68,7 +68,7 @@ export default function TermsPage() {
 
       <LegalSection title="7. Acceptable Use">
         <p>You may not use {SITE_NAME} to:</p>
-        <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+        <ul className="legal-list">
           <li>Access or manage a store or business account without authorization.</li>
           <li>Send unlawful, deceptive, abusive, or spam communications.</li>
           <li>Interfere with the operation, security, or integrity of the platform.</li>
@@ -82,7 +82,7 @@ export default function TermsPage() {
           Our handling of personal and business data is described in our Privacy Policy. By using {SITE_NAME},
           you also agree to that policy.
         </p>
-        <p style={{ marginTop: "12px" }}>
+        <p className="legal-block-gap">
           You remain responsible for obtaining any customer notices, consents, or permissions required
           for your own store operations and communications.
         </p>
@@ -132,7 +132,7 @@ export default function TermsPage() {
 
       <LegalSection title="14. Contact" last>
         <p>If you have questions about these Terms and Conditions, contact us at:</p>
-        <p style={{ marginTop: "12px" }}>
+        <p className="legal-block-gap">
           <strong>Email:</strong> {SITE_SUPPORT_EMAIL}<br />
           <strong>Website:</strong> {SITE_URL}
         </p>

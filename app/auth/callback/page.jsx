@@ -6,7 +6,7 @@ export default function AuthCallbackPage() {
     <Suspense
       fallback={
         <main className="page">
-          <section className="card" style={{ textAlign: "center", padding: "80px 40px" }}>
+          <section className="card auth-card">
             <div className="friendly-loader" aria-hidden="true">
               <span />
               <span />

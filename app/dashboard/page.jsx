@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import SiteFooter from "../components/SiteFooter";
 import { buildApiUrl, createAuthHeaders, readErrorMessage } from "../../lib/api";
-import { SETUP_PATH } from "../../lib/routes";
+import { buildDashboardPath, SETUP_PATH } from "../../lib/routes";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -30,17 +30,18 @@ export default function DashboardPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [user, setUser] = useState(null);
+  const [merchantSourceResolved, setMerchantSourceResolved] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push(SETUP_PATH);
+        router.replace(SETUP_PATH);
         return;
       }
       setUser(session.user);
     };
-    checkAuth();
+    void checkAuth();
   }, [router]);
 
   useEffect(() => {
@@ -49,13 +50,69 @@ export default function DashboardPage() {
     if (param) {
       setMerchantId(param);
       localStorage.setItem("merchant_id", param);
+    } else {
+      const stored = localStorage.getItem("merchant_id");
+      if (stored) {
+        setMerchantId(stored);
+      }
+    }
+    setMerchantSourceResolved(true);
+  }, []);
+
+  useEffect(() => {
+    if (!merchantSourceResolved || merchantId) {
       return;
     }
-    const stored = localStorage.getItem("merchant_id");
-    if (stored) {
-      setMerchantId(stored);
-    }
-  }, []);
+
+    let cancelled = false;
+
+    const resolveMerchantFromAccount = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        if (!cancelled) {
+          router.replace(SETUP_PATH);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetch(buildApiUrl("/api/merchants/me"), {
+          headers: createAuthHeaders(session.access_token),
+        });
+
+        if (!response.ok) {
+          throw new Error("Missing merchant.");
+        }
+
+        const data = await response.json();
+        if (!data?.merchant_id) {
+          throw new Error("Missing merchant.");
+        }
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem("merchant_id", data.merchant_id);
+        }
+        if (!cancelled) {
+          setMerchantId(data.merchant_id);
+          router.replace(buildDashboardPath(data.merchant_id));
+        }
+      } catch {
+        if (!cancelled) {
+          setLoading(false);
+          router.replace(SETUP_PATH);
+        }
+      }
+    };
+
+    void resolveMerchantFromAccount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [merchantId, merchantSourceResolved, router]);
 
   const loadDashboardData = useCallback(async ({ showLoading = true } = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -100,12 +157,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!merchantId) {
-      setLoading(false);
+      if (merchantSourceResolved) {
+        setLoading(false);
+      }
       return;
     }
 
     void loadDashboardData({ showLoading: true });
-  }, [loadDashboardData, merchantId, refreshKey]);
+  }, [loadDashboardData, merchantId, merchantSourceResolved, refreshKey]);
 
   useEffect(() => {
     if (!merchantId) return;
@@ -153,7 +212,7 @@ export default function DashboardPage() {
         localStorage.removeItem("merchant_id");
       }
       await supabase.auth.signOut();
-      router.push(SETUP_PATH);
+      router.replace(SETUP_PATH);
     } finally {
       setTimeout(() => setSigningOut(false), 500);
     }
@@ -181,14 +240,13 @@ export default function DashboardPage() {
         <div className="brand">
           <h2>Orders dashboard</h2>
           <p>Merchant: {merchantId || "Not set"}</p>
-          {user && <p style={{ fontSize: '1rem', opacity: 0.7 }}>Account: {user.email}</p>}
+          {user ? <p className="account-email">Account: {user.email}</p> : null}
         </div>
-        <div className="actions">
+        <div className="actions header-tools">
           {user && (
             <button
               onClick={handleLogout}
-              className="button"
-              style={{ padding: '10px 20px', fontSize: '1rem' }}
+              className="button signout-button"
               disabled={signingOut}
             >
               {signingOut ? "Signing out..." : "Sign Out"}
@@ -202,7 +260,7 @@ export default function DashboardPage() {
             Refresh data
           </button>
 
-          <span style={{ display: "inline-flex" }}>
+          <span className="dashboard-link-wrap">
             <Link className="button button-primary" href={SETUP_PATH}>
               Manage store
             </Link>

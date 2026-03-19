@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
@@ -18,8 +18,14 @@ export default function AuthCallbackClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
+  const completedRef = useRef(false);
 
   useEffect(() => {
+    if (completedRef.current) {
+      return;
+    }
+    completedRef.current = true;
+
     let cancelled = false;
 
     const finishSignIn = async () => {
@@ -36,9 +42,29 @@ export default function AuthCallbackClient() {
       }
 
       try {
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) {
+        const {
+          data: { session: existingSession },
+        } = await supabase.auth.getSession();
+
+        if (existingSession) {
+          if (!cancelled) {
+            router.replace(next);
+          }
+          return;
+        }
+
+        if (!code) {
+          throw new Error("Sign in could not be completed. Please try again.");
+        }
+
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          // Strict Mode in development can run this effect twice, so an already-used
+          // OAuth code should still continue if a session is now present.
+          const {
+            data: { session: recoveredSession },
+          } = await supabase.auth.getSession();
+          if (!recoveredSession) {
             throw exchangeError;
           }
         }
@@ -67,7 +93,7 @@ export default function AuthCallbackClient() {
 
   return (
     <main className="page">
-      <section className="card" style={{ textAlign: "center", padding: "80px 40px" }}>
+      <section className="card auth-card">
         {!error ? (
           <>
             <div className="friendly-loader" aria-hidden="true">
@@ -80,9 +106,9 @@ export default function AuthCallbackClient() {
           </>
         ) : (
           <>
-            <h1 className="section-title" style={{ marginBottom: "16px" }}>Sign-in problem</h1>
+            <h1 className="section-title callback-title">Sign-in problem</h1>
             <p className="notice error-notice">{error}</p>
-            <div className="actions" style={{ justifyContent: "center", marginTop: "24px" }}>
+            <div className="actions callback-actions">
               <Link href={SETUP_PATH} className="button button-primary">
                 Back to setup
               </Link>

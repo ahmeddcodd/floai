@@ -17,10 +17,10 @@ export default function LegalPageLayout({ title, lastUpdated, maxWidth = "800px"
     <div className="landing-page">
       <MarketingNav variant="back" />
 
-      <main className="landing-section" style={{ paddingTop: "140px" }}>
-        <div className="landing-section-inner" style={{ maxWidth }}>
+      <main className="landing-section legal-main">
+        <div className="landing-section-inner legal-inner" style={{ maxWidth }}>
           <div className="reveal" style={{ "--delay": "0.1s" }}>
-            <div className="landing-feature-icon" style={{ margin: "0 auto 24px" }}>
+            <div className="landing-feature-icon legal-shield-icon">
               {shieldIcon}
             </div>
             <h1 className="landing-section-title">{title}</h1>
@@ -28,8 +28,8 @@ export default function LegalPageLayout({ title, lastUpdated, maxWidth = "800px"
           </div>
 
           <div
-            className="card reveal"
-            style={{ "--delay": "0.2s", marginTop: "48px", textAlign: "left", lineHeight: "1.8" }}
+            className="card reveal legal-card"
+            style={{ "--delay": "0.2s" }}
           >
             {children}
           </div>

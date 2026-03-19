@@ -13,7 +13,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection title="2. Information We Collect">
         <p>To provide our services, we collect the following types of information:</p>
-        <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+        <ul className="legal-list">
           <li><strong>Account Information:</strong> When you sign in via Google, we receive your email address and basic profile information.</li>
           <li><strong>Store Configuration:</strong> We collect your Shopify store name, store URL, and Shopify Admin API access tokens to monitor and manage your orders.</li>
           <li><strong>WhatsApp Business Data:</strong> If you connect your WhatsApp Business account via Meta's Embedded Signup, we receive your Phone Number ID and WhatsApp Business Account (WABA) ID.</li>
@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection title="3. How We Use Your Information">
         <p>We use the collected information for the following purposes:</p>
-        <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+        <ul className="legal-list">
           <li>To provide automated COD order verification and risk scoring.</li>
           <li>To send automated WhatsApp confirmation messages on your behalf.</li>
           <li>To update order statuses (confirm or cancel) in your Shopify admin panel.</li>
@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection title="4. Data Sharing and Third Parties">
         <p>We do not sell your data. We share information only with service providers necessary to operate our platform:</p>
-        <ul style={{ paddingLeft: "20px", marginTop: "12px" }}>
+        <ul className="legal-list">
           <li><strong>Meta (Facebook/WhatsApp):</strong> To send messages via the WhatsApp Business API.</li>
           <li><strong>Shopify:</strong> To synchronize order data and perform actions on your store.</li>
           <li><strong>Supabase:</strong> For secure database storage and authentication.</li>
@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
         <p>
           If you have any questions about this Privacy Policy or our data practices, please reach out to us:
         </p>
-        <p style={{ marginTop: "12px" }}>
+        <p className="legal-block-gap">
           <strong>Email:</strong> {SITE_SUPPORT_EMAIL}<br />
           <strong>Website:</strong> {SITE_URL}
         </p>

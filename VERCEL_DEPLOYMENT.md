@@ -16,6 +16,10 @@ Add these required variables in the Vercel project settings before deploying:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
+Optional (recommended for branded Google OAuth):
+
+- `NEXT_PUBLIC_SUPABASE_CUSTOM_DOMAIN_URL`
+
 Add these only if you want WhatsApp Embedded Signup enabled in the setup flow:
 
 - `NEXT_PUBLIC_META_APP_ID`
@@ -41,3 +45,14 @@ After the first deployment:
    Add your deployed callback URL ending in `/auth/callback`.
 3. Confirm the deployed domain is allowed in Meta app / WhatsApp Embedded Signup configuration if that flow is enabled.
 4. Confirm `NEXT_PUBLIC_API_BASE_URL` points to the correct backend environment.
+
+## Google Sign-In Branding (Show "FloAI")
+
+If Google currently shows your Supabase project-ref domain (for example `xxxx.supabase.co`) during sign-in:
+
+1. Configure a Supabase custom domain or vanity subdomain for your project.
+2. Set `NEXT_PUBLIC_SUPABASE_CUSTOM_DOMAIN_URL` in Vercel to that branded Supabase domain.
+3. In Google OAuth client settings, allow both callback URLs:
+   - `https://<project-ref>.supabase.co/auth/v1/callback`
+   - `https://<your-branded-domain>/auth/v1/callback`
+4. In Google Auth Platform > Branding, set app name to `FloAI`, complete brand verification, and publish branding.
