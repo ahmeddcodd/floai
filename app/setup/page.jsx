@@ -38,18 +38,6 @@ function deriveMerchantId(domain, storeName) {
   return base || `merchant-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function safeOrigin(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  const withScheme = raw.match(/^https?:\/\//i) ? raw : `https://${raw}`;
-  try {
-    return new URL(withScheme).origin;
-  } catch {
-    return "";
-  }
-}
-
 export default function SetupPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -229,8 +217,8 @@ export default function SetupPage() {
     setError("");
     setGoogleSigningIn(true);
 
-    const canonicalSiteOrigin = safeOrigin(process.env.NEXT_PUBLIC_SITE_URL);
-    const redirectOrigin = canonicalSiteOrigin || window.location.origin;
+    // Keep redirect on the exact same origin that initiated OAuth so PKCE verifier storage matches.
+    const redirectOrigin = window.location.origin;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

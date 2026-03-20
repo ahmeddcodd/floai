@@ -31,6 +31,32 @@ function clearCallbackHash() {
   window.history.replaceState(null, document.title, cleanUrl);
 }
 
+function readPkceExchangeState(code) {
+  if (typeof window === "undefined" || !code) {
+    return "";
+  }
+  try {
+    return window.sessionStorage.getItem(`oauth-pkce-exchange:${code}`) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writePkceExchangeState(code, state) {
+  if (typeof window === "undefined" || !code) {
+    return;
+  }
+  try {
+    if (!state) {
+      window.sessionStorage.removeItem(`oauth-pkce-exchange:${code}`);
+      return;
+    }
+    window.sessionStorage.setItem(`oauth-pkce-exchange:${code}`, state);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 async function waitForSession({ attempts = 6, delayMs = 150 } = {}) {
   for (let index = 0; index < attempts; index += 1) {
     const {
@@ -93,14 +119,32 @@ export default function AuthCallbackClient() {
         }
 
         if (code) {
+          const exchangeState = readPkceExchangeState(code);
+
+          // In React Strict Mode (dev), callback effects can run more than once.
+          // If another render already started/finished the same code exchange, wait for its session.
+          if (exchangeState === "started" || exchangeState === "done") {
+            const recoveredSession = await waitForSession({ attempts: 40, delayMs: 150 });
+            if (recoveredSession) {
+              if (!cancelled) {
+                router.replace(next);
+              }
+              return;
+            }
+          }
+
+          writePkceExchangeState(code, "started");
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) {
-            // Strict Mode in development can run this effect twice, so an already-used
-            // OAuth code should still continue if a session is now present.
-            const recoveredSession = await waitForSession({ attempts: 3, delayMs: 120 });
+            // A parallel callback attempt may have completed exchange first; allow enough time to recover.
+            const recoveredSession = await waitForSession({ attempts: 40, delayMs: 150 });
             if (!recoveredSession) {
+              writePkceExchangeState(code, "");
               throw exchangeError;
             }
+            writePkceExchangeState(code, "done");
+          } else {
+            writePkceExchangeState(code, "done");
           }
         } else {
           const accessToken = hashParams.get("access_token");
@@ -131,7 +175,14 @@ export default function AuthCallbackClient() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Unable to complete sign in.");
+          const message = err?.message || "Unable to complete sign in.";
+          if (/PKCE code verifier not found/i.test(message)) {
+            setError(
+              "Sign in expired before callback completion. Please start Google sign-in again from setup."
+            );
+            return;
+          }
+          setError(message);
         }
       }
     };
