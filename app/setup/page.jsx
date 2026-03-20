@@ -55,6 +55,10 @@ export default function SetupPage() {
   const [fbReady, setFbReady] = useState(false);
   const [waConnected, setWaConnected] = useState(false);
   const [waData, setWaData] = useState(null); // { phone_number_id, waba_id }
+  const [waManualData, setWaManualData] = useState({
+    phone_number_id: "",
+    waba_id: "",
+  });
   const [waAuthCode, setWaAuthCode] = useState(null); // FB.login auth code
   const [waConnecting, setWaConnecting] = useState(false);
   const initialAuthCheckCompletedRef = useRef(false);
@@ -274,6 +278,20 @@ export default function SetupPage() {
     [normalizedDomain, form.storeName]
   );
   const merchantIdPreviewReady = Boolean(normalizedDomain || form.storeName.trim());
+  const resolvedWaData = useMemo(() => {
+    if (waData?.phone_number_id && waData?.waba_id) {
+      return waData;
+    }
+    const phoneNumberId = String(waManualData.phone_number_id || "").trim();
+    const wabaId = String(waManualData.waba_id || "").trim();
+    if (!phoneNumberId || !wabaId) {
+      return null;
+    }
+    return {
+      phone_number_id: phoneNumberId,
+      waba_id: wabaId,
+    };
+  }, [waData, waManualData]);
 
   const handleGoogleLogin = async () => {
     setError("");
@@ -354,7 +372,7 @@ export default function SetupPage() {
       }
 
       // After registration, send WhatsApp credentials if connected
-      if (waAuthCode && waData?.phone_number_id && waData?.waba_id) {
+      if (waAuthCode && resolvedWaData?.phone_number_id && resolvedWaData?.waba_id) {
         try {
           const waRes = await fetch(
             buildApiUrl(`/api/merchants/${encodeURIComponent(merchantId)}/whatsapp`),
@@ -365,8 +383,8 @@ export default function SetupPage() {
               }),
               body: JSON.stringify({
                 code: waAuthCode,
-                phone_number_id: waData.phone_number_id,
-                waba_id: waData.waba_id,
+                phone_number_id: resolvedWaData.phone_number_id,
+                waba_id: resolvedWaData.waba_id,
               }),
             }
           );
@@ -568,6 +586,42 @@ export default function SetupPage() {
                   <p className="help-text wa-help">
                     Connect your WhatsApp Business account to send automated order confirmations from your own number.
                   </p>
+                  {waAuthCode && !waData && (
+                    <div className="panel">
+                      <p className="help-text">
+                        Auto-detection did not return account IDs. Paste them manually from WhatsApp Manager:
+                        Phone Number ID and WABA ID.
+                      </p>
+                      <div className="field">
+                        <label htmlFor="waPhoneNumberId">WhatsApp Phone Number ID</label>
+                        <input
+                          id="waPhoneNumberId"
+                          value={waManualData.phone_number_id}
+                          onChange={(event) =>
+                            setWaManualData((prev) => ({
+                              ...prev,
+                              phone_number_id: event.target.value,
+                            }))
+                          }
+                          placeholder="123456789012345"
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="waWabaId">WhatsApp Business Account ID (WABA ID)</label>
+                        <input
+                          id="waWabaId"
+                          value={waManualData.waba_id}
+                          onChange={(event) =>
+                            setWaManualData((prev) => ({
+                              ...prev,
+                              waba_id: event.target.value,
+                            }))
+                          }
+                          placeholder="123456789012345"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
