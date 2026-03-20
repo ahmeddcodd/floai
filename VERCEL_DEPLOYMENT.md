@@ -13,6 +13,7 @@ This app lives in a subfolder, so setting the root directory correctly is import
 Add these required variables in the Vercel project settings before deploying:
 
 - `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
@@ -45,6 +46,7 @@ After the first deployment:
    Add your deployed callback URL ending in `/auth/callback`.
 3. Confirm the deployed domain is allowed in Meta app / WhatsApp Embedded Signup configuration if that flow is enabled.
 4. Confirm `NEXT_PUBLIC_API_BASE_URL` points to the correct backend environment.
+5. Confirm `NEXT_PUBLIC_SITE_URL` exactly matches your public app domain (for example `https://floai.pk`).
 
 ## Google Sign-In Branding (Show "FloAI")
 
@@ -56,3 +58,14 @@ If Google currently shows your Supabase project-ref domain (for example `xxxx.su
    - `https://<project-ref>.supabase.co/auth/v1/callback`
    - `https://<your-branded-domain>/auth/v1/callback`
 4. In Google Auth Platform > Branding, set app name to `FloAI`, complete brand verification, and publish branding.
+
+## Google OAuth Page-Not-Found Fix
+
+If the browser shows a **Page not found** right after selecting a Google account:
+
+1. In Google OAuth client settings, **do not** set your app URL (like `https://your-app.com/auth/v1/callback`) as the redirect URI.
+2. Use only your Supabase auth callback URIs:
+   - `https://<project-ref>.supabase.co/auth/v1/callback`
+   - `https://<your-supabase-custom-domain>/auth/v1/callback` (if configured)
+3. In Supabase Auth URL configuration, allow your app callback URL:
+   - `https://<your-app-domain>/auth/callback`

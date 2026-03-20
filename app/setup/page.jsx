@@ -37,6 +37,18 @@ function deriveMerchantId(domain, storeName) {
   return base || `merchant-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function safeOrigin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const withScheme = raw.match(/^https?:\/\//i) ? raw : `https://${raw}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    return "";
+  }
+}
+
 export default function SetupPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -215,10 +227,14 @@ export default function SetupPage() {
   const handleGoogleLogin = async () => {
     setError("");
     setGoogleSigningIn(true);
+
+    const canonicalSiteOrigin = safeOrigin(process.env.NEXT_PUBLIC_SITE_URL);
+    const redirectOrigin = canonicalSiteOrigin || window.location.origin;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}${AUTH_CALLBACK_PATH}?next=${encodeURIComponent(SETUP_PATH)}`,
+        redirectTo: `${redirectOrigin}${AUTH_CALLBACK_PATH}?next=${encodeURIComponent(SETUP_PATH)}`,
       },
     });
     if (error) {
