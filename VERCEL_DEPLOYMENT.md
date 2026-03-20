@@ -20,6 +20,7 @@ Add these required variables in the Vercel project settings before deploying:
 Optional (recommended for branded Google OAuth):
 
 - `NEXT_PUBLIC_SUPABASE_CUSTOM_DOMAIN_URL`
+- `NEXT_PUBLIC_SUPABASE_USE_CUSTOM_DOMAIN` (set `true` only after custom auth domain DNS is fully working)
 
 Add these only if you want WhatsApp Embedded Signup enabled in the setup flow:
 
@@ -54,10 +55,11 @@ If Google currently shows your Supabase project-ref domain (for example `xxxx.su
 
 1. Configure a Supabase custom domain or vanity subdomain for your project.
 2. Set `NEXT_PUBLIC_SUPABASE_CUSTOM_DOMAIN_URL` in Vercel to that branded Supabase domain.
-3. In Google OAuth client settings, allow both callback URLs:
+3. Set `NEXT_PUBLIC_SUPABASE_USE_CUSTOM_DOMAIN=true` only after DNS + TLS for that domain is active.
+4. In Google OAuth client settings, allow both callback URLs:
    - `https://<project-ref>.supabase.co/auth/v1/callback`
    - `https://<your-branded-domain>/auth/v1/callback`
-4. In Google Auth Platform > Branding, set app name to `FloAI`, complete brand verification, and publish branding.
+5. In Google Auth Platform > Branding, set app name to `FloAI`, complete brand verification, and publish branding.
 
 ## Google OAuth Page-Not-Found Fix
 
