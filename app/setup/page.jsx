@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import SiteFooter from "../components/SiteFooter";
+import UserAccountBadge from "../components/UserAccountBadge";
 import { API_BASE_URL, META_APP_ID, META_CONFIG_ID } from "../../lib/config";
 import { buildApiUrl, createAuthHeaders, readErrorMessage } from "../../lib/api";
 import { AUTH_CALLBACK_PATH, buildDashboardPath, SETUP_PATH } from "../../lib/routes";
@@ -235,6 +236,10 @@ export default function SetupPage() {
       provider: "google",
       options: {
         redirectTo: `${redirectOrigin}${AUTH_CALLBACK_PATH}?next=${encodeURIComponent(SETUP_PATH)}`,
+        scopes: "openid email profile",
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
     if (error) {
@@ -364,6 +369,7 @@ export default function SetupPage() {
           <p>Register your Shopify store and track COD confirmations in one place.</p>
         </div>
         <div className="header-tools">
+          <UserAccountBadge user={user} />
           {user && (
             <button
               onClick={handleLogout}

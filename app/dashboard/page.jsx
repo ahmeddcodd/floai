@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import SiteFooter from "../components/SiteFooter";
+import UserAccountBadge from "../components/UserAccountBadge";
 import { buildApiUrl, createAuthHeaders, readErrorMessage } from "../../lib/api";
 import { buildDashboardPath, SETUP_PATH } from "../../lib/routes";
 
@@ -240,9 +241,9 @@ export default function DashboardPage() {
         <div className="brand">
           <h2>Orders dashboard</h2>
           <p>Merchant: {merchantId || "Not set"}</p>
-          {user ? <p className="account-email">Account: {user.email}</p> : null}
         </div>
         <div className="actions header-tools">
+          <UserAccountBadge user={user} />
           {user && (
             <button
               onClick={handleLogout}
