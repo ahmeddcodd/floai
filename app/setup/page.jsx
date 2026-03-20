@@ -161,6 +161,7 @@ export default function SetupPage() {
     const initializeFacebookSdk = () => {
       window.FB.init({
         appId: META_APP_ID,
+        cookie: true,
         autoLogAppEvents: true,
         xfbml: true,
         version: "v22.0",
@@ -279,7 +280,12 @@ export default function SetupPage() {
         config_id: META_CONFIG_ID,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {} },
+        extras: {
+          setup: {},
+          feature: "whatsapp_embedded_signup",
+          featureType: "whatsapp_embedded_signup",
+          sessionInfoVersion: "3",
+        },
       }
     );
   };
@@ -618,7 +624,8 @@ export default function SetupPage() {
                               phone_number_id: event.target.value,
                             }))
                           }
-                          placeholder="123456789012345"
+                          placeholder="Enter real Phone Number ID from WhatsApp Manager"
+                          aria-label="Enter actual WhatsApp Phone Number ID"
                         />
                       </div>
                       <div className="field">
@@ -632,7 +639,8 @@ export default function SetupPage() {
                               waba_id: event.target.value,
                             }))
                           }
-                          placeholder="123456789012345"
+                          placeholder="Enter real WABA ID from WhatsApp Manager"
+                          aria-label="Enter actual WhatsApp Business Account ID"
                         />
                       </div>
                     </div>
