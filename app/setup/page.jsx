@@ -63,6 +63,8 @@ export default function SetupPage() {
   const [waConnecting, setWaConnecting] = useState(false);
   const initialAuthCheckCompletedRef = useRef(false);
   const waConnectTimeoutRef = useRef(null);
+  const WA_TIMEOUT_ERROR =
+    "WhatsApp signup timed out before completion details were received. Please try Connect WhatsApp again.";
 
   const resolveSessionAndMerchant = useCallback(
     async ({ session: knownSession } = {}) => {
@@ -182,22 +184,26 @@ export default function SetupPage() {
           const details =
             typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
 
-          if (eventName === "FINISH" && details) {
+          if (
+            (eventName === "FINISH" ||
+              eventName === "FINISH_ONLY_WABA" ||
+              eventName === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") &&
+            details
+          ) {
             const phoneNumberId = String(details?.phone_number_id || "").trim();
             const wabaId = String(details?.waba_id || "").trim();
-            if (!phoneNumberId || !wabaId) {
-              setWaConnecting(false);
-              setWaConnected(false);
-              setWaData(null);
-              setError("WhatsApp signup finished, but required account details were missing. Please try again.");
-              return;
-            }
-            setWaConnected(true);
             setWaData({
               phone_number_id: phoneNumberId,
               waba_id: wabaId,
             });
+            setWaConnected(Boolean(phoneNumberId && wabaId));
             setWaConnecting(false);
+
+            if (!phoneNumberId || !wabaId) {
+              setError(
+                "WhatsApp signup completed, but Meta did not return both Phone Number ID and WABA ID. Please paste the missing IDs manually."
+              );
+            }
           } else if (eventName === "CANCEL" || eventName === "ERROR") {
             setWaConnecting(false);
             setWaConnected(false);
@@ -228,7 +234,7 @@ export default function SetupPage() {
       setWaConnecting(false);
       setWaConnected(false);
       setWaData(null);
-      setError("WhatsApp signup timed out before completion details were received. Please try Connect WhatsApp again.");
+      setError(WA_TIMEOUT_ERROR);
     }, 45000);
 
     return () => {
@@ -237,7 +243,16 @@ export default function SetupPage() {
         waConnectTimeoutRef.current = null;
       }
     };
-  }, [waConnecting]);
+  }, [waConnecting, WA_TIMEOUT_ERROR]);
+
+  useEffect(() => {
+    const hasManualIds =
+      String(waManualData.phone_number_id || "").trim() &&
+      String(waManualData.waba_id || "").trim();
+    if (hasManualIds && error === WA_TIMEOUT_ERROR) {
+      setError("");
+    }
+  }, [waManualData, error, WA_TIMEOUT_ERROR]);
 
   const launchWhatsAppSignup = () => {
     setError("");
