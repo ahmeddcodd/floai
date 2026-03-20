@@ -58,6 +58,7 @@ export default function SetupPage() {
   const [waAuthCode, setWaAuthCode] = useState(null); // FB.login auth code
   const [waConnecting, setWaConnecting] = useState(false);
   const initialAuthCheckCompletedRef = useRef(false);
+  const waConnectTimeoutRef = useRef(null);
 
   const resolveSessionAndMerchant = useCallback(
     async ({ session: knownSession } = {}) => {
@@ -173,9 +174,13 @@ export default function SetupPage() {
         const payload =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         if (payload?.type === "WA_EMBEDDED_SIGNUP") {
-          if (payload.event === "FINISH" && payload.data) {
-            const phoneNumberId = String(payload.data.phone_number_id || "").trim();
-            const wabaId = String(payload.data.waba_id || "").trim();
+          const eventName = String(payload.event || "").toUpperCase();
+          const details =
+            typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
+
+          if (eventName === "FINISH" && details) {
+            const phoneNumberId = String(details?.phone_number_id || "").trim();
+            const wabaId = String(details?.waba_id || "").trim();
             if (!phoneNumberId || !wabaId) {
               setWaConnecting(false);
               setWaConnected(false);
@@ -189,7 +194,7 @@ export default function SetupPage() {
               waba_id: wabaId,
             });
             setWaConnecting(false);
-          } else if (payload.event === "CANCEL" || payload.event === "ERROR") {
+          } else if (eventName === "CANCEL" || eventName === "ERROR") {
             setWaConnecting(false);
             setWaConnected(false);
             setWaData(null);
@@ -201,8 +206,34 @@ export default function SetupPage() {
     };
 
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!waConnecting) {
+      if (waConnectTimeoutRef.current) {
+        clearTimeout(waConnectTimeoutRef.current);
+        waConnectTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    waConnectTimeoutRef.current = setTimeout(() => {
+      setWaConnecting(false);
+      setWaConnected(false);
+      setWaData(null);
+      setError("WhatsApp signup timed out before completion details were received. Please try Connect WhatsApp again.");
+    }, 45000);
+
+    return () => {
+      if (waConnectTimeoutRef.current) {
+        clearTimeout(waConnectTimeoutRef.current);
+        waConnectTimeoutRef.current = null;
+      }
+    };
+  }, [waConnecting]);
 
   const launchWhatsAppSignup = () => {
     setError("");
