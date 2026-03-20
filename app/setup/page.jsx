@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import SiteFooter from "../components/SiteFooter";
@@ -56,6 +56,7 @@ export default function SetupPage() {
   const [waConnected, setWaConnected] = useState(false);
   const [waData, setWaData] = useState(null); // { phone_number_id, waba_id }
   const [waAuthCode, setWaAuthCode] = useState(null); // FB.login auth code
+  const initialAuthCheckCompletedRef = useRef(false);
 
   const resolveSessionAndMerchant = useCallback(
     async ({ session: knownSession } = {}) => {
@@ -68,9 +69,6 @@ export default function SetupPage() {
       setUser(currentUser);
 
       if (!currentUser || !session) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("merchant_id");
-        }
         setLoading(false);
         return;
       }
@@ -105,6 +103,7 @@ export default function SetupPage() {
 
     const getSession = async () => {
       await resolveSessionAndMerchant();
+      initialAuthCheckCompletedRef.current = true;
     };
 
     void getSession();
@@ -115,17 +114,28 @@ export default function SetupPage() {
       }
 
       if (!session) {
-        setUser(null);
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("merchant_id");
+        if (event === "SIGNED_OUT") {
+          setUser(null);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("merchant_id");
+          }
+          setLoading(false);
         }
-        setLoading(false);
         return;
       }
 
-      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-        setLoading(true);
+      if (event === "TOKEN_REFRESHED") {
+        setUser(session.user);
+        return;
       }
+
+      // INITIAL_SESSION can fire after getSession() and also when tab focus changes.
+      // Avoid re-running setup loading flow for those non-user-initiated events.
+      if (event === "INITIAL_SESSION" && initialAuthCheckCompletedRef.current) {
+        setUser(session.user);
+        return;
+      }
+
       void resolveSessionAndMerchant({ session });
     });
 

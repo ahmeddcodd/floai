@@ -21,6 +21,25 @@ function formatFlags(flags) {
   return flags.join(", ");
 }
 
+async function getStableSession({ attempts = 4, delayMs = 120 } = {}) {
+  for (let index = 0; index < attempts; index += 1) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      return session;
+    }
+
+    if (index < attempts - 1) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+    }
+  }
+
+  return null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [merchantId, setMerchantId] = useState("");
@@ -34,15 +53,62 @@ export default function DashboardPage() {
   const [merchantSourceResolved, setMerchantSourceResolved] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const session = await getStableSession();
+      if (session) {
+        if (!cancelled) {
+          setUser(session.user);
+        }
+        return;
+      }
+
+      const {
+        data: { session: refreshedSession },
+      } = await supabase.auth.refreshSession();
+
+      if (refreshedSession) {
+        if (!cancelled) {
+          setUser(refreshedSession.user);
+        }
+        return;
+      }
+
       if (!session) {
+        if (!cancelled) {
+          router.replace(SETUP_PATH);
+        }
+        return;
+      }
+    };
+
+    void checkAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (event === "SIGNED_OUT") {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("merchant_id");
+        }
         router.replace(SETUP_PATH);
         return;
       }
-      setUser(session.user);
+
+      if (session?.user) {
+        setUser(session.user);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
     };
-    void checkAuth();
   }, [router]);
 
   useEffect(() => {
@@ -68,13 +134,11 @@ export default function DashboardPage() {
     let cancelled = false;
 
     const resolveMerchantFromAccount = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const session = await getStableSession();
 
       if (!session) {
         if (!cancelled) {
-          router.replace(SETUP_PATH);
+          setLoading(false);
         }
         return;
       }
@@ -102,8 +166,8 @@ export default function DashboardPage() {
         }
       } catch {
         if (!cancelled) {
+          setError("Unable to verify merchant profile right now. Please try again.");
           setLoading(false);
-          router.replace(SETUP_PATH);
         }
       }
     };
@@ -204,6 +268,30 @@ export default function DashboardPage() {
       supabase.removeChannel(channel);
     };
   }, [loadDashboardData, merchantId]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      void (async () => {
+        const session = await getStableSession();
+        if (session) {
+          setUser(session.user);
+        }
+      })();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const handleLogout = async () => {
     setSigningOut(true);
